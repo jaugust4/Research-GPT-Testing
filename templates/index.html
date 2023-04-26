@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <!--Title and importing jquery, and cloudfare script as well as style scripts style.css, formatting for responses, and app.py server script-->
+  <title>Chat Check</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@10.7.2/lib/languages/python.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/a11y-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+</head>
+
+<body>
+  <!--Creating form and chat box-->
+  <div class="container_title" id="chat-box">
+    <h1>Chat Check</h1>
+    <div class="container mt-5">
+      <div class="chat-box mt-3">
+        <!-- Chat messages will be added here dynamically -->
+      </div>
+      <!--This form contains the input that the user types in, and invisible placeholders for the response and prompt used to call for storage in firebase-->
+      <div class="form-group mt-3">
+        <textarea class="form-control" rows="3" placeholder="Type your message here" id="message-input"></textarea>
+        <textarea class="form-control" rows="3" id="prompt" style="display: none;"></textarea>
+        <textarea class="form-control" rows="3" id="response" style="display: none;"></textarea>
+        <textarea class="form-control" rows="3" id="number" style="display: none;"></textarea>
+      </div>
+      <!--Two buttons on to send response and one for feedback-->
+      <button type="button" class="btn btn-primary" id="send-btn">Send</button>
+      <button type="button" class="btn btn-primary" id="weird-btn">Not-Normal</button>
+    </div>
+  </div>
+
+  <!--The feedback page-->
+  <div class="container_title" id="feedback" style="display: none;">
+    <!--Title and all 6 questions with text input boxes after each one-->
+    <h1>Feedback</h1>
+    <br>
+    <b>How would you describe the Model as a Speaker?</b>
+    <br>
+    <input type="text" id="question1" style="width: 500px;" style="font-size: 20pt;" style="height: 70px;">
+    <br><br>
+    <b>What changes could have happened during to improve conversation?</b>
+    <br>
+    <input type="text" id="question2" style="width: 500px;" style="font-size: 20pt;" style="height: 70px;">
+    <br><br>
+    <b>What changes should be made after to improve conversation?</b>
+    <br>
+    <input type="text" id="question3" style="width: 500px;" style="font-size: 20pt;" style="height: 70px;">
+    <br><br>
+    <b>What did you feel was the general attitude of the Model?</b>
+    <br>
+    <input type="text" id="question4" style="width: 500px;" style="font-size: 20pt;" style="height: 70px;">
+    <br><br>
+    <b>What is your overall feeling during and after the conversation?</b>
+    <br>
+    <input type="text" id="question5" style="width: 500px;" style="font-size: 20pt;" style="height: 70px;">
+    <br><br>
+    <b>Any further concerns or input?</b>
+    <br>
+    <input type="text" id="question6" style="width: 500px;" style="font-size: 20pt;" style="height: 70px;">
+    <br><br>
+
+    <!--A back button and a confirm and send response button-->
+    <button type="button" class="btn btn-primary" id="confirm-btn">Confirm</button>
+    <button type="button" class="btn btn-primary" id="back-btn">Back</button>
+  </div>
+
+  <script>
+    setInterval(highlightAll,1000);
+    // Function to highlight code using highlight.js library
+    function highlightAll() {
+      document.querySelectorAll("pre code").forEach(block => {
+        hljs.highlightBlock(block);
+      });
+    }
+
+    //creating variables to add chat messages and read input and button prompts
+    const chatBox = document.querySelector(".chat-box");
+    const messageInput = document.querySelector("#message-input");
+    const sendBtn = document.querySelector("#send-btn");
+    const weirdBtn = document.querySelector("#weird-btn");
+    const confirmBtn = document.querySelector("#confirm-btn");
+    const backBtn = document.querySelector("#back-btn");
+    const prompts = document.getElementById("prompt");
+    const response = document.getElementById("response");
+
+    //add message function with ability to add bot or user messages
+    function addMessage(message, isUserMessage) {
+      //create new div
+      const messageDiv = document.createElement("div");
+      messageDiv.classList.add("mt-3", "p-3", "rounded");
+
+      //check if it is user message or not and arrange accordingly with messages and proper photos above messages
+      if (isUserMessage == true) {
+        messageDiv.classList.add("user-message");
+        messageDiv.innerHTML = `<img src="{{ url_for('static', filename='images/user.png') }}" class="user-icon"><p>${message}</p>`;
+
+      } else {
+        messageDiv.classList.add("bot-message");
+        
+        //Check if the content has code block in it
+        const hasCodeBlock = message.includes("```");
+        if (hasCodeBlock) {
+          //If the content has code block, wrap it in a <pre><code> element so it will format nicely 
+          const codeContent = message.replace(/```([\s\S]+?)```/g, '</p><pre><code>$1</code></pre><p>');
+          //add the ai image above its text in the div box
+          messageDiv.innerHTML = `<img src="{{ url_for('static', filename='images/gpt.jpg') }}" class="bot-icon"><p>${codeContent}</p>`
+        }
+
+        else{
+          //Otherwise just add the ai image above the text
+          messageDiv.innerHTML = `<img src="{{ url_for('static', filename='images/gpt.jpg') }}" class="bot-icon"><p>${message}</p>`
+        }
+      }
+      
+      //scroll to bottom of the list of chats when a new chat is put in
+      chatBox.appendChild(messageDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    //Second function that is ran
+    function sendMessage() {
+      //Getting the input from user and storing it in invisible prompt label as well
+      const message = messageInput.value.trim();
+      prompts.value = messageInput.value;
+
+      //If message is not empty run addMessage and specify it is the users message with true
+      if (message !== "") {
+        addMessage(message, true);
+
+        //grab all needed data from app.py and send the message
+        fetch("/api", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ message })
+        })
+          //grab response from json script
+          .then(response => response.json())
+          .then(data => {
+            //clear user input
+            messageInput.value = "";
+           
+            //grab data content for normal and invisible label and add the message from it
+            const content = data.content;
+            response.value = data.content;
+            addMessage(content, false);
+          })
+          .catch(error => console.error(error));
+      }
+    }
+
+    //The first function ran, if button or enter is clicked to run the sendMessage function
+    sendBtn.addEventListener("click", sendMessage);
+    messageInput.addEventListener("keydown", event => {
+      if (event.keyCode === 13 && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+      }
+    });
+  </script>
+
+  <script type="module">
+    //importing links and functions from firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
+    import { getDatabase, ref, set, child, update, get} from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
+
+    //info for the specific database
+    const firebaseConfig = {
+      //insert your firebase Config here//
+      ////////////////////////////////////
+      ////////////////////////////////////
+    };
+
+    //initializing firebase app and getting pages for feedback and chat-box
+    const app = initializeApp(firebaseConfig);
+    var F = document.getElementById("feedback");
+    var C = document.getElementById("chat-box");
+    //count will count what turn this is, num will count what label in data this should go in
+    var count = 0;
+    var num = 0;
+    //n will be a random number that will be create a key for the current runs data
+    var n = 100000 + Math.floor(Math.random() * 900000);
+    var key = n;
+
+    //checking if enter has ben clicked
+    messageInput.addEventListener("keydown", event => {
+      if (event.keyCode === 13 && !event.shiftKey) {
+        //setting timeout for this to wait to be ran for 5 seconds to give time for ChatGPT to answer
+        setTimeout(function(){
+          //getting prompt and response data and reference for firebase
+          const db = getDatabase();
+          const dbref = ref(db);
+          const numReference = ref(db, 'Data/')
+
+          const prompts = document.getElementById("prompt").value;
+          const response = document.getElementById("response").value;
+
+          //setting user reference and storing the users input data from prompts
+          var val = key + num;
+          const userReference = ref(db, 'Conversations/' + val);
+          const sUserReference = ref(db, `${key}/` + num);
+          set(userReference, {
+            aTurn : count,
+            bType : "User",
+            cResponse : prompts
+          });
+          set(sUserReference, {
+            aTurn : count,
+            bType : "User",
+            cResponse : prompts
+          });
+          num++;
+
+          //setting AI reference and storing the AI response data from response
+          val = key + num;
+          const AIReference = ref(db, 'Conversations/' + val);
+          const sAIReference = ref(db, `${key}/` + num);
+          set(AIReference, {
+            aTurn : count,
+            bType : "AI",
+            cResponse : response
+          });
+          set(sAIReference, {
+            aTurn : count,
+            bType : "AI",
+            cResponse : response
+          });
+          count++;
+          num++;
+        }, 5000);
+      }
+    });
+
+    //if Not-Normal button is clicked go to feedback page and leave chat-box page
+    weirdBtn.addEventListener("click", event => {
+      F.style.display = "block";
+      C.style.display = "none";
+    });
+    
+    //if confirm button is clicked on feedback page
+    confirmBtn.addEventListener("click", event => {
+      //get firebase reference and data from all question responses
+      const db = getDatabase();
+      const dbref = ref(db);
+      const numReference = ref(db, 'Data/')
+      const question1 = document.querySelector("#question1").value;
+      const question2 = document.querySelector("#question2").value;
+      const question3 = document.querySelector("#question3").value;
+      const question4 = document.querySelector("#question4").value;
+      const question5 = document.querySelector("#question5").value;
+      const question6 = document.querySelector("#question6").value;
+      //put all responses in vector called questions
+      var questions = [question1, question2, question3, question4, question5, question6];
+      //put titles in storage for all questions in their own same sized vector
+      var types = ["Attributes of Model", "Potential Prerequisites", "Potential Consequences", "Model Emotion State", "Responder Emotion State"];
+
+      //leave feedback page now and return to chat-box
+      F.style.display = "none";
+      C.style.display = "block";
+
+      //iterate through questions and check for ones that are filled out
+      for(var it = 0; it < questions.length; it++){
+        if(questions[it] != ""){
+          //if filled out grab reference, answer, and the Name of question and store it in firebase
+          var val = key + num;
+          var strNum = num.toString();
+          const fbReference = ref(db, 'Conversations/' + val);
+          const sfbReference = ref(db, `${key}` + strNum);
+          const currentQuestion = questions[it];
+          const currentType = types[it]
+          set(fbReference, {
+            aTurn : count - 1,
+            bType : currentType,
+            cResponse : currentQuestion
+          });
+          set(sfbReference, {
+            aTurn : count - 1,
+            bType : currentType,
+            cResponse : currentQuestion
+          });
+          num++
+        }
+      }
+    });
+
+    //if back button is clicked go back the chat-box page
+    backBtn.addEventListener("click", event => {
+      F.style.display = "none";
+      C.style.display = "block";
+    });
+  </script>
+</body>
+</html>
